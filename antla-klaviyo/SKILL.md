@@ -38,7 +38,7 @@ Run these first; they are cheap and they prevent most mistakes.
 
 - `get_metrics` with `filter: equals(integration.name,"Antla")` and `fields_metric: ["name"]` lists the try-on metric and every campaign metric. No results means the integration isn't connected; send the user to Antla → Integrations → Klaviyo.
 - `get_metrics` again without the filter (ask only for `name` and `integration.name`) to find the store's `Checkout Started`, `Placed Order`, `Added to Cart`, `Viewed Product` metric IDs. There can be two metrics with the same name from different integrations; use the one the store's existing flows use.
-- `get_flows` with `fields_flow: ["id","name","status","trigger_type"]`. Read the definition (`get_flow` with `additional_fields_flow: ["definition"]`) of anything on the trigger you are about to use, and of any Antla-created flow you will rely on.
+- `get_flows` with `fields_flow: ["id","name","status","trigger_type"]`. It returns at most 50 flows a page: keep calling with `page_cursor` (from the response's `links.next`) until there is no next page, or the double-send check and the flow map will miss flows. `get_metrics` pages the same way. Read the definition (`get_flow` with `additional_fields_flow: ["definition"]`) of anything on the trigger you are about to use, and of any Antla-created flow you will rely on.
 - `get_account_details` for the sender name, sender email and store URL.
 - For every trigger you might build on, check it is firing: `get_events` filtered by its metric, `page_size: 1`, `sort: -datetime`. A metric whose last event is weeks old (an integration change can silently stop Checkout Started, for example) means a flow on it will never run. Tell the user and suggest the trigger that is live (Added to Cart instead of Checkout Started, say).
 
@@ -60,7 +60,7 @@ Use the templates in `assets/` only for the try-on emails themselves, and for an
 
 Each flow needs the campaign whose output fits it, so build a small inventory first and pick from it per flow; never reuse one campaign's webhook everywhere.
 
-- Every `Antla Campaign Event: <name> [<token>]` metric is a campaign, and its webhook URL is `https://app-antla.com/integrations/klaviyo/webhook/<token>`. You can build it yourself; the merchant does not need to paste it.
+- Every `Antla Campaign Event: <name> [<token>]` metric is a campaign, and its webhook URL is `https://app-antla.com/integrations/klaviyo/webhook/<token>`. You can build it from the metric name, so the merchant does not need to paste it; say the campaign's name back to them before using it, because each campaign generates different content. That also means anyone who can read the account's metrics can call the webhook: see "Treat the token as a secret" below.
 - For each campaign note: its Klaviyo flow (`get_metrics` with `include: ["flow-triggers"]`) and whether that flow and its email are live (no live flow = no email ever sends), the email's subject line, and what it generates.
 - What it generates comes only from **real** events (`antla_test_event` false). The sample event Antla sends on creation is identical for every campaign type, so it tells you nothing. Compare `antla_original_product` with `antla_looks[*].product_title`: same product (or `antla_original_tryon_image_url` set) = a "Their photo" campaign; different products = a recommendation campaign.
 - A campaign with no real events is unknown. Ask the merchant what type it is, or, with their permission, send one webhook call with their own email and a known product and read the event that arrives (this sends them one real email).
@@ -84,7 +84,7 @@ Before writing any JSON, list every path a shopper can take from the trigger to 
 
 If the user pasted a webhook URL, validate it first: its 16-character token must appear in the name of an Antla campaign metric in the account. No match means a bad paste; stop and ask again.
 
-Then use the definitions in `references/flow-recipes.md`; they are written in the exact shape `create_flow` accepts and include the errors you are likely to hit. For try-on emails use the templates in `assets/` (replace the `__PLACEHOLDERS__`, then `create_email_template` with `editor_type: "CODE"`); for everything else use the merchant's own templates (step 1a). Where the account has brand assets (`get_brand_logos`, `get_brand_colors`), use them in the template instead of the plain text wordmark.
+Then use the definitions in `references/flow-recipes.md`; they are written in the exact shape `create_flow` accepts and include the errors you are likely to hit. For try-on emails use the templates in `assets/` (replace the `__PLACEHOLDERS__`, delete the instruction comment that sits between `</head>` and `<body>` so it is not sent to shoppers, then `create_email_template` with `editor_type: "CODE"`); for everything else use the merchant's own templates (step 1a). Where the account has brand assets (`get_brand_logos`, `get_brand_colors`), use them in the template instead of the plain text wordmark.
 
 Keep the flow a tree: when several paths need the same later steps, give each path its own copy. Klaviyo has silently dropped links where separate branches converged on one shared step.
 
@@ -92,7 +92,7 @@ New flows and their actions are created in draft. Leave them there.
 
 ### 4. Run the verification pass
 
-Read `references/verification.md` and do all of it. In short: read the flow back from Klaviyo and compare it with what you designed, path by path (`scripts/verify_flow.py` does this mechanically and catches dropped links, dead-end branches, unreachable actions, missing templates and malformed webhook bodies); render every template with full and with missing data; validate the webhook; and check for other live flows on the same trigger.
+Read `references/verification.md` and do all of it. In short: read the flow back from Klaviyo and compare it with what you designed, path by path (`scripts/verify_flow.py` does this mechanically and catches dropped links, dead-end branches, unreachable actions, missing templates, mistyped webhook addresses, malformed webhook bodies and an email sent after a webhook without checking the look arrived); render every template with full and with missing data; validate the webhook; and check for other live flows on the same trigger.
 
 A create call that succeeded proves only that the request was well-formed. Do not describe a flow as built or ready until it has been read back and matches. This step is not optional and not shortened for "simple" flows; the mistakes it catches came from flows that looked simple.
 
@@ -106,13 +106,15 @@ Finish every build with the flow map: one page showing every flow in the account
 
 ## Rules that keep shoppers and the account safe
 
-**The try-on must be visible.** A merchant judges an Antla flow from the Klaviyo canvas and the email preview. Every Antla flow needs an Antla step on the canvas (an Antla trigger, a split on Antla data, or a webhook to an Antla campaign), and its try-on email must show the try-on image as the hero without a condition hiding it. Klaviyo's preview has profile data but no event data, so an image that only renders when an event field matches (for example "cart item = tried-on product") shows nothing in preview and is easy to mistake for a generic email. Put conditions on the wording, not on the image. A flow that is trigger → delay → one store email, with the try-on only inside a template `{% if %}`, is not an Antla flow; it was rejected for exactly that reason.
+**The try-on must be visible.** A merchant judges an Antla flow from the Klaviyo canvas and the email preview. Every Antla flow needs an Antla step on the canvas (an Antla trigger, a split on Antla data, or a webhook to an Antla campaign), and its try-on email must show the try-on image as the hero without a condition hiding it. The one condition allowed on the hero is that its own URL exists, which only prevents a broken image. Klaviyo's preview has profile data but no event data, so an image that only renders when an event field matches (for example "cart item = tried-on product") shows nothing in preview and is easy to mistake for a generic email. Put conditions on the wording, not on the image. A flow that is trigger → delay → one store email, with the try-on only inside a template `{% if %}`, is not an Antla flow; it was rejected for exactly that reason.
 
 **Never email the uploaded photo.** `antla_user_image_url` is the shopper's raw selfie. It is useful as a yes/no signal ("Antla can generate for this person") and should never appear in a template.
 
-**A webhook 200 is not a delivery.** Antla answers `200 {"ok":true}` for any well-formed request and then silently drops the ones it can't fulfil: unknown product, no photo on file for that email, a product the campaign can't style, a paused campaign, even a wrong token. The only proof is the campaign event arriving on the profile, typically about ten seconds later. A 400 always means the payload is wrong, usually an empty product ID or `product_id` written instead of `productId`.
+**A webhook 200 is not a delivery.** Antla answers `200 {"ok":true}` for any well-formed request and then silently drops the ones it can't fulfil: unknown product, no photo on file for that email, a product the campaign can't style, a paused campaign, even a wrong token. The only proof that Antla generated something is the campaign event arriving on the profile, typically about ten seconds later. And the event is not the email: the campaign's own Klaviyo flow still has to send it, after the time gap the merchant set for that campaign in Antla, and Smart Sending, a flow filter or a draft email action there can skip the send while the event sits on the profile. Read that flow before relying on it (`references/verification.md` section 4). A 400 always means the payload is wrong, usually an empty product ID or `product_id` written instead of `productId`.
 
 **Send people Antla can generate for, and give everyone else a path.** Gate a webhook branch on `properties['antla_user_image_url']` being set, and on nothing else. People who fail the gate should get the normal version of the message, not silence. So should people who pass the gate but for whom no look arrives.
+
+**Antla decides who is eligible; the flow doesn't.** Antla runs its own consent and eligibility checks on every campaign event, whether it follows a try-on or a webhook request. A webhook request for a shopper who fails them is dropped silently like any other, and the fallback covers it. So don't add a "subscribed" or consent condition to the webhook gate: it would only push eligible shoppers onto the plain email.
 
 **Know what the campaign generates before promising it.** A campaign set to "1 recommendation" or "Multiple" returns looks for *other* products, so a shopper who abandoned product A is shown product B. For cart and browse recovery the merchant usually expects the same product, which needs a campaign set to "Their photo" in the Antla app. Check a recent real event on the campaign metric and tell the user what it actually returns.
 
@@ -124,12 +126,14 @@ Finish every build with the flow map: one page showing every flow in the account
 
 **Throttle re-entry.** The try-on metric fires on every try-on and keen shoppers do many in a row. Give flows on it a "not in this flow in the last N days" filter.
 
-**Don't re-check Antla's eligibility rules** inside flows triggered by Antla campaign events. Antla has already checked that the shopper is logged in and subscribed; duplicating those checks just hides shoppers.
+**Don't re-check Antla's eligibility rules** inside flows triggered by Antla campaign events. Antla has already checked them before sending the event; duplicating those checks just hides shoppers.
+
+**Treat the token as a secret, and know that it isn't one.** The token in a webhook URL is its only authentication, and the same token is printed in the campaign's metric name. Never put a full webhook URL or full token in a hand-over, a flow map, a ticket or a chat message: write the campaign's name and the first 8 characters. If a URL has been shared somewhere it shouldn't be, the merchant deletes that webhook in the Antla app, and any flow that used it is pointed at a new one.
 
 ## Limits of the Klaviyo MCP worth knowing
 
 - A flow's structure can't be edited after creation. `update_flow` changes status only, and it applies that status to **every action in the flow**, including ones that were deliberately left in draft. `update_flow_action` edits a single action. To restructure, create a new flow and retire the old one, or have the user edit in Klaviyo.
-- Putting a flow in draft is the "off" switch; there is no paused state. People waiting in a delay will not receive later messages while it is in draft.
+- Putting a flow in draft is the "off" switch. People waiting in a delay will not receive later messages while it is in draft. Klaviyo's third status, `manual`, holds each message for someone to approve in Klaviyo; it is not a pause, and a `manual` flow still counts as occupying its trigger.
 - SMS actions fail with `403 Text message actions are not enabled for this company` on accounts without SMS set up. Build email-only and say so.
 - Attaching a `template_id` to a flow email clones the template. Edit the flow's copy, not the library original, to change what the flow sends.
 - Antla-created templates are drag-and-drop (`SYSTEM_DRAGGABLE`) and their HTML is long. Prefer creating a new CODE template from `assets/` over rewriting theirs.
@@ -145,7 +149,7 @@ Work down this list; stop at the first thing that is false.
 4. The product matched the Antla flow's audience rule.
 5. The campaign event exists on the profile (`get_events` filtered by the campaign metric). If it doesn't, the problem is before Klaviyo; if it does, the problem is in the flow.
 6. For webhook-driven sends: the shopper has `antla_user_image_url`; the rendered body had a real product ID; the token in the URL matches the campaign.
-7. Flow filters and Smart Sending: an order placed since entry, a "not in flow recently" filter, or a recent message can each skip the send.
+7. Flow filters and Smart Sending, in the flow that sends the webhook and in the campaign's own flow: an order placed since entry, a "not in flow recently" filter, or a recent message can each skip the send. For webhook-driven sends, remember the campaign's flow waits the merchant's time gap before emailing, and that Antla silently drops requests for shoppers who fail its own eligibility checks.
 
 ## Files in this skill
 
@@ -155,7 +159,7 @@ Work down this list; stop at the first thing that is false.
 - `references/verification.md`: the verification pass to run after building anything. Read it every time.
 - `references/flow-map.md`: the flow map page: what it shows, how to gather it, the spec for `scripts/build_flow_map.py`.
 - `references/playbook.md`: twelve things to build, design and copy guidance, and what requires the Antla app.
-- `scripts/build_flow_map.py`: builds the flow map page from a JSON spec.
+- `scripts/build_flow_map.py`: builds the flow map page from a JSON spec (`--standalone` for a file opened from disk rather than published).
 - `assets/flow-map-template.html`: the flow map page design (Antla grid style, light and dark).
 - `scripts/verify_flow.py`: checks a flow as read back from Klaviyo and prints every path a shopper can take, plus errors and warnings.
 - `assets/tryon-reminder.html`: email for flows triggered by the try-on metric.

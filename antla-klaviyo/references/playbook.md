@@ -26,13 +26,13 @@ Trigger on the try-on metric filtered to `antla_tryon_count` equals a threshold 
 Three days after an order, send recommendations generated on their photo, chosen to go with what they bought. Buyers Antla can't generate for get `post-purchase-invite.html`. Recipe D. Needs an Antla campaign of type "1 recommendation" or "Multiple".
 
 **6. New arrivals, on you.**
-For a product drop: segment "photo on file", and send each of them the new hero product generated on their photo. There is no bulk-generation call; do it with a segment-triggered flow whose only action is the webhook with a fixed `productId` for the new product. The Antla campaign's flow then delivers the email. Throttle with a small segment first: every profile entering is one generation.
+For a product drop: segment "photo on file", and send each of them the new hero product generated on their photo. There is no bulk-generation call; do it with a segment-triggered flow whose only action is the webhook with a fixed `productId` for the new product. The Antla campaign's flow then delivers the email. Throttle with a small segment first: every profile entering is one generation. `verify_flow.py` will warn that the product ID is fixed; here that is intended.
 
 **7. Win-back with a fresh look.**
-Trigger from a "lapsed 90 days" segment, filter to photo on file, webhook with a current bestseller's product ID. A returning-customer email that shows them something new on themselves.
+Trigger from a "lapsed 90 days" segment, split on photo on file, webhook with a current bestseller's product ID. A returning-customer email that shows them something new on themselves.
 
 **8. Back in stock / price drop, personalised.**
-Klaviyo's back-in-stock and price-drop triggers carry the product. Add the photo-on-file split and the webhook. The item they wanted is back, and here they are wearing it.
+Klaviyo's back-in-stock and price-drop triggers carry the product. Add the photo-on-file split and the webhook, with the usual wait, check and fallback. The item they wanted is back, and here they are wearing it.
 
 ## Making ordinary email better
 
@@ -66,4 +66,4 @@ A try-on count threshold → set a profile property (for example `Antla Style Ex
 - Choosing the email type (Their photo / 1 recommendation / Multiple), the audience rule, timing, the discount, and whether shoppers are added to a list.
 - Sending a test event with realistic data ("Test email" in Antla's flow builder).
 
-When a play needs a campaign that doesn't exist yet, say exactly what to create in Antla (name, email type, audience) and ask for the webhook URL once it exists.
+When a play needs a campaign that doesn't exist yet, say exactly what to create in Antla (name, email type, audience). Once it exists its metric appears in Klaviyo, and the webhook URL can be built from the token in the metric's name.

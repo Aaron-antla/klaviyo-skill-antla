@@ -36,7 +36,7 @@ Then either run the script or do the same checks by hand.
 python3 scripts/verify_flow.py flow.json --expect-actions <N> --expect-links <N>
 ```
 
-using the counts from step 1. It prints every path a shopper can take and lists errors (dropped links, unreachable actions, branches to nowhere, emails with no template or subject, malformed webhook bodies, example values left in) and warnings (webhook with no fallback, repeated email, draft actions inside a live flow). Fix every error. Read every warning and note and decide whether it is intended.
+using the counts from step 1. It prints every path a shopper can take and lists errors (dropped links, unreachable actions, branches to nowhere, emails with no template or subject, a mistyped Antla address, a missing JSON content type, malformed webhook bodies, example values left in) and warnings (webhook with no fallback, an email sent after a webhook with no check that the look arrived, a webhook that is not an Antla address at all, a fixed product ID, repeated email, draft actions inside a live flow). Fix every error. Read every warning and note and decide whether it is intended.
 
 **By hand** (when you can't run it), check all of these against the read-back:
 
@@ -45,14 +45,16 @@ using the counts from step 1. It prints every path a shopper can take and lists 
 3. Starting at `entry_action_id`, follow every link and write out each path to its end. Compare the list with the paths you designed in step 1. Every path must match.
 4. Every action is on at least one path.
 5. Every email action has a `template_id`, a real subject line, a sender, and preview text.
-6. Every webhook action has the right URL, and a body that is valid JSON with `email` and `productId` (exact spelling), both filled from template variables rather than fixed example values.
-7. The trigger metric, trigger filter, flow filter and re-entry setting are what you intended.
+6. Every webhook action has the right URL (exactly `https://app-antla.com/integrations/klaviyo/webhook/` plus 16 lowercase hex characters, no stray whitespace), a `Content-Type: application/json` header, and a body that is valid JSON with `email` and `productId` (exact spelling), both filled from template variables rather than fixed example values. A fixed `productId` is right only for a single-product send.
+7. Every webhook branch is gated on the photo being on file and on nothing else, and between each webhook and any later email on the same path there is a split that checks the look arrived.
+8. The trigger metric, trigger filter, flow filter and re-entry setting are what you intended.
 
 The script cannot judge intent. Whichever way you check, read the printed paths as the shopper would experience them and confirm each one is what the user asked for.
 
 ## 3. Check the content
 
-- Render every template with `render_email_template` (`fields_template: ["html"]`), at least twice: once with full, realistic data, and once with the optional data missing (no first name, `antla_discount: null`, an empty `antla_looks`, a missing image URL). Read the output. No broken images, no half sentences, no stray punctuation.
+- Render every template with `render_email_template` (`fields_template: ["html"]`), at least twice: once with full, realistic data, and once with the optional data missing (no first name, `antla_discount: null`, an empty `antla_looks`, a missing image URL). Read the output. No broken images, no half sentences, no stray punctuation. In the missing-data render a try-on hero simply isn't there; that is correct, because the flow's trigger or split is what guarantees the image exists for real sends.
+- Read the rendered HTML for anything that should not reach a shopper: the instruction comment from the asset file, a `__PLACEHOLDER__` left in, a webhook URL.
 - Check each template is on a flow whose trigger supplies the variables it uses. `event.antla_looks…` only exists on Antla campaign events; `event.antla_tryon_image_url` only on the try-on metric; `event.extra.line_items…` only on Shopify checkout and order events.
 - Check the subject line and preview text render too: they use the same variables and fail the same way.
 
@@ -60,13 +62,14 @@ The script cannot judge intent. Whichever way you check, read the printed paths 
 
 - **Validate the URL against Klaviyo.** Take the 16-character token from the end of the webhook URL and find it in the list of Antla metrics (`Antla Campaign Event: <name> [<token>]`). If no metric contains that token, the URL is wrong or cut short: stop and ask the user to copy it again. A wrong token is accepted by Antla with a 200 and then ignored, so this check is the only thing that catches a bad paste.
 - Confirm a live flow is triggered by that metric and contains a live email. Without one, the webhook generates a look and nobody receives it.
+- Read that flow's definition for anything that can skip the send after the event has arrived: Smart Sending on the email, flow filters, and the delay before the email (the time gap the merchant set in Antla; tell the user how long it is). A shopper skipped there gets neither the look nor your fallback. Report each one to the user; changing Antla's flow is their decision.
 - Confirm the product ID path against one real event for this flow's trigger metric.
 - Confirm the webhook is not inside a flow triggered by the same campaign's metric (a loop).
 - Know what the campaign generates: read one recent real event on the campaign metric and compare `antla_original_product` with `antla_looks`. If the looks are different products from the original, the campaign's email type is a recommendation, and a shopper who abandoned product A will be shown product B. Tell the user, because for cart and browse recovery they usually expect the same product; the setting is in the Antla app.
 
 ## 5. Check the neighbours
 
-- List every live flow on the same trigger metric (`get_flows`, then read the trigger of each candidate, or `get_flows_triggered_by_metric` where available). State each overlap to the user. Two live flows on one trigger means two messages.
+- List every live flow on the same trigger metric (`get_flows`, then read the trigger of each candidate, or `get_flows_triggered_by_metric` where available). `get_flows` returns 50 a page; follow `page_cursor` to the end before concluding there is no overlap. Count `manual` flows as well as `live` ones. State each overlap to the user. Two live flows on one trigger means two messages.
 - If the new flow shares a trigger with a flow Antla created, one of them must stay in draft.
 - Check every gate can actually be passed: for each property a split or filter depends on, look at a few real profiles or events and confirm the value that opens the branch really occurs in this account. A gate nobody can pass looks exactly like a working flow until a real event runs through it.
 - Check re-entry: flows on the try-on metric and on Viewed Product need a "not in this flow recently" filter or a re-entry limit.

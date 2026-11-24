@@ -41,7 +41,7 @@ One metric per flow created in the Antla app (Integrations → Klaviyo → Creat
 
 Antla sends this event in two situations:
 - a shopper completes a try-on that matches the Antla flow's audience, is logged in, is subscribed to marketing and meets Antla's own eligibility checks (Antla checks these; you do not need to re-check them in Klaviyo); or
-- something POSTs to the campaign's webhook URL (see `webhook.md`).
+- something POSTs to the campaign's webhook URL (see `webhook.md`). Antla applies its own consent and eligibility checks to these too and silently drops requests that fail.
 
 Antla creates a matching Klaviyo flow and email template when the Antla flow is set live.
 
@@ -105,7 +105,7 @@ A webhook body needs one product ID. These paths were confirmed on real events; 
 | Placed Order (Shopify) | `{{ event.extra.line_items.0.product_id }}` | numeric, first order line (same structure as Checkout Started; confirm on a sample) |
 | Ordered Product (Shopify) | `{{ event.ProductID }}` | numeric, fires once per line item |
 | Added to Cart (Shopify) | `{{ event.ProductID }}` | numeric string |
-| Viewed Product (Klaviyo onsite JS) | `{{ event.ProductID }}` | numeric |
+| Viewed Product (Klaviyo onsite JS) | `{{ event.ProductID }}` | numeric. The title is `event.Name` on Shopify's built-in tracking and `event.ProductName` on custom snippets; the templates in `assets/` read whichever is present. |
 | Customer tried-on an outfit | `{{ event.antla_product_id.id }}` | GID |
 | Antla campaign event | `{{ event.antla_original_product.product_id }}` or `{{ event.antla_looks.0.product_id }}` | GID |
 
@@ -133,9 +133,10 @@ Klaviyo templates use Django-style tags. All of these were rendered successfully
 {{ person|lookup:'antla_last_tryon_image_url' }}
 ```
 
-- Event variables are empty outside a flow triggered by the matching Antla metric. A missing variable renders as nothing, so an unguarded `<img src="{{ … }}">` becomes a broken image. Wrap every personal image in `{% if %}`.
+- Event variables are empty outside a flow triggered by the matching Antla metric. A missing variable renders as nothing, so an unguarded `<img src="{{ … }}">` becomes a broken image. Wrap every personal image in an `{% if %}` on its own URL. For the hero of a try-on email that is the only condition allowed: testing anything else there (a product match, an event field) hides the image in Klaviyo's preview.
 - Subject lines and preview text accept the same variables.
 - Always include `{% unsubscribe 'Unsubscribe' %}`.
-- `default:` only takes a literal. `{{ a|default:event.ProductName }}` makes the whole template fail to render (400); use `{% if a %}{{ a }}{% else %}{{ b }}{% endif %}`.
-- Keys with spaces: `{{ event|lookup:'Product Name' }}`.
-- "Is the cart item the product they tried on?" works in a template (not in a flow split, which only compares to fixed values). Shopify events carry a numeric ID and Antla stores a GID, so test it as a substring: `{% if person|lookup:'antla_last_tryon_image_url' and event.ProductID|stringformat:"s" in person|lookup:'antla_last_tryon_product_id' %}`. For checkout and order events use `event.extra.line_items.0.product_id|stringformat:"s"`. Rendered true for a match and false for a different product or an empty profile.
+- Prefer `{% if a %}{{ a }}{% else %}{{ b }}{% endif %}` to `{{ a|default:b }}` when the fallback is another variable. `default:` with a literal (`|default:''`) is reliable. With a variable as its argument it rendered correctly in one test (`{{ event.a|default:event.b }}`) and made the whole template fail with a 400 in an earlier one, so it is not worth the risk.
+- Keys with spaces: `{{ event|lookup:'Product Name' }}`. A `lookup` on a key that is missing prints the word `None`, so test it first: `{% if event|lookup:'Product Name' %}{{ event|lookup:'Product Name' }}{% endif %}`.
+- "Is the cart item the product they tried on?" works in a template (not in a flow split, which only compares to fixed values). Shopify events carry a numeric ID and Antla stores a GID, so cut off the GID's 22-character prefix (`gid://shopify/Product/`) and compare: `{% if person|lookup:'antla_last_tryon_image_url' and event.ProductID|stringformat:"s" == person|lookup:'antla_last_tryon_product_id'|slice:"22:" %}`. For checkout and order events use `event.extra.line_items.0.product_id|stringformat:"s"`. Rendered true for a match, and false for a different product, an empty profile, missing event data, and an ID that is only the tail of the stored one. Do not use a substring test (`in`) here: `345678901` is "in" `gid://shopify/Product/8012345678901`.
+- Appending a query parameter to a URL from an event: the URL may already have a query string, so write `{{ event.URL }}{% if '?' in event.URL %}&amp;{% else %}?{% endif %}antla-open-modal=true`, inside an `{% if event.URL %}`.

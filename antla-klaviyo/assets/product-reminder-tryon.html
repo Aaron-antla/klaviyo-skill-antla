@@ -13,12 +13,12 @@
   try-on image (no webhook needed). Otherwise the hero is the catalog photo and a "See it on you"
   button opens the try-on on the product page.
 
-  Product fields are read from the flat event fields (ProductID / Product Name / ImageURL / URL, used by
+  Product fields are read from the flat event fields (ProductID / ProductName or Name / ImageURL / URL, used by
   Added to Cart, Viewed Product and back-in-stock events) and, when those are absent, from the first
   line item of a Shopify checkout or order (event.extra.line_items.0).
 
   The same-product check compares the numeric Shopify ID from the event with the GID in
-  antla_last_tryon_product_id ("gid://shopify/Product/123"), using a substring test.
+  antla_last_tryon_product_id ("gid://shopify/Product/123") after cutting off the GID's 22-character prefix.
 
   Replace before creating the template:
     __STORE_URL__   store URL, no trailing slash
@@ -35,21 +35,21 @@
     <a href="__STORE_URL__" style="color:#111111;text-decoration:none;">__BRAND__</a>
   </td></tr>
 {% if event.ProductID %}
-  {% if person|lookup:'antla_last_tryon_image_url' and event.ProductID|stringformat:"s" in person|lookup:'antla_last_tryon_product_id' %}
+  {% if person|lookup:'antla_last_tryon_image_url' and event.ProductID|stringformat:"s" == person|lookup:'antla_last_tryon_product_id'|slice:"22:" %}
   <tr><td align="center" style="padding:0 24px 8px;font-family:Arial,Helvetica,sans-serif;font-size:13px;letter-spacing:1px;color:#666666;">
     {% if person.first_name %}{{ person.first_name|upper }}, {% endif %}__HEADLINE__
   </td></tr>
   <tr><td align="center" style="padding:0 24px 20px;font-family:Arial,Helvetica,sans-serif;font-size:30px;line-height:1.2;color:#111111;">
-    You in the {% if event.ProductName %}{{ event.ProductName }}{% else %}{{ event|lookup:'Product Name' }}{% endif %}
+    You in the {% if event.ProductName %}{{ event.ProductName }}{% elif event.Name %}{{ event.Name }}{% elif event|lookup:'Product Name' %}{{ event|lookup:'Product Name' }}{% endif %}
   </td></tr>
   <tr><td align="center" style="padding:0;">
-    <a href="{{ event.URL }}"><img src="{{ person|lookup:'antla_last_tryon_image_url' }}" width="600" alt="You wearing the {% if event.ProductName %}{{ event.ProductName }}{% else %}{{ event|lookup:'Product Name' }}{% endif %}" style="display:block;width:100%;max-width:600px;height:auto;border:0;"></a>
+    <a href="{{ event.URL|default:'__STORE_URL__' }}"><img src="{{ person|lookup:'antla_last_tryon_image_url' }}" width="600" alt="You wearing the {% if event.ProductName %}{{ event.ProductName }}{% elif event.Name %}{{ event.Name }}{% elif event|lookup:'Product Name' %}{{ event|lookup:'Product Name' }}{% endif %}" style="display:block;width:100%;max-width:600px;height:auto;border:0;"></a>
   </td></tr>
   <tr><td align="center" style="padding:28px 24px 8px;font-family:Arial,Helvetica,sans-serif;font-size:16px;line-height:1.5;color:#333333;">
     You tried it on and it looked good. __BODY__
   </td></tr>
   <tr><td align="center" style="padding:16px 24px 32px;">
-    <a href="{{ event.URL }}" style="display:inline-block;background:#111111;color:#ffffff;font-family:Arial,Helvetica,sans-serif;font-size:16px;font-weight:700;text-decoration:none;padding:15px 32px;border-radius:6px;">__CTA__</a>
+    <a href="{{ event.URL|default:'__STORE_URL__' }}" style="display:inline-block;background:#111111;color:#ffffff;font-family:Arial,Helvetica,sans-serif;font-size:16px;font-weight:700;text-decoration:none;padding:15px 32px;border-radius:6px;">__CTA__</a>
   </td></tr>
   {% else %}
   <tr><td align="center" style="padding:0 24px 20px;font-family:Arial,Helvetica,sans-serif;font-size:30px;line-height:1.2;color:#111111;">
@@ -57,24 +57,26 @@
   </td></tr>
   {% if event.ImageURL %}
   <tr><td align="center" style="padding:0;">
-    <a href="{{ event.URL }}"><img src="{{ event.ImageURL }}" width="600" alt="{% if event.ProductName %}{{ event.ProductName }}{% else %}{{ event|lookup:'Product Name' }}{% endif %}" style="display:block;width:100%;max-width:600px;height:auto;border:0;"></a>
+    <a href="{{ event.URL|default:'__STORE_URL__' }}"><img src="{{ event.ImageURL }}" width="600" alt="{% if event.ProductName %}{{ event.ProductName }}{% elif event.Name %}{{ event.Name }}{% elif event|lookup:'Product Name' %}{{ event|lookup:'Product Name' }}{% endif %}" style="display:block;width:100%;max-width:600px;height:auto;border:0;"></a>
   </td></tr>
   {% endif %}
   <tr><td align="center" style="padding:24px 24px 8px;font-family:Arial,Helvetica,sans-serif;font-size:20px;font-weight:700;color:#111111;">
-    {% if event.ProductName %}{{ event.ProductName }}{% else %}{{ event|lookup:'Product Name' }}{% endif %}
+    {% if event.ProductName %}{{ event.ProductName }}{% elif event.Name %}{{ event.Name }}{% elif event|lookup:'Product Name' %}{{ event|lookup:'Product Name' }}{% endif %}
   </td></tr>
   <tr><td align="center" style="padding:0 24px 8px;font-family:Arial,Helvetica,sans-serif;font-size:16px;line-height:1.5;color:#333333;">
     __BODY__
   </td></tr>
   <tr><td align="center" style="padding:16px 24px 8px;">
-    <a href="{{ event.URL }}" style="display:inline-block;background:#111111;color:#ffffff;font-family:Arial,Helvetica,sans-serif;font-size:16px;font-weight:700;text-decoration:none;padding:15px 32px;border-radius:6px;">__CTA__</a>
+    <a href="{{ event.URL|default:'__STORE_URL__' }}" style="display:inline-block;background:#111111;color:#ffffff;font-family:Arial,Helvetica,sans-serif;font-size:16px;font-weight:700;text-decoration:none;padding:15px 32px;border-radius:6px;">__CTA__</a>
   </td></tr>
+  {% if event.URL %}
   <tr><td align="center" style="padding:8px 24px 32px;font-family:Arial,Helvetica,sans-serif;font-size:14px;color:#666666;">
-    Not sure yet? <a href="{{ event.URL }}?antla-open-modal=true" style="color:#111111;font-weight:700;">See it on you</a> with our virtual try-on.
+    Not sure yet? <a href="{{ event.URL }}{% if '?' in event.URL %}&amp;{% else %}?{% endif %}antla-open-modal=true" style="color:#111111;font-weight:700;">See it on you</a> with our virtual try-on.
   </td></tr>
   {% endif %}
+  {% endif %}
 {% else %}
-  {% if person|lookup:'antla_last_tryon_image_url' and event.extra.line_items.0.product_id|stringformat:"s" in person|lookup:'antla_last_tryon_product_id' %}
+  {% if person|lookup:'antla_last_tryon_image_url' and event.extra.line_items.0.product_id|stringformat:"s" == person|lookup:'antla_last_tryon_product_id'|slice:"22:" %}
   <tr><td align="center" style="padding:0 24px 8px;font-family:Arial,Helvetica,sans-serif;font-size:13px;letter-spacing:1px;color:#666666;">
     {% if person.first_name %}{{ person.first_name|upper }}, {% endif %}__HEADLINE__
   </td></tr>
@@ -82,7 +84,7 @@
     You in the {{ event.extra.line_items.0.title }}
   </td></tr>
   <tr><td align="center" style="padding:0;">
-    <a href="{% if event.extra.responsive_checkout_url %}{{ event.extra.responsive_checkout_url }}{% else %}__STORE_URL__/products/{{ event.extra.line_items.0.product.handle }}{% endif %}"><img src="{{ person|lookup:'antla_last_tryon_image_url' }}" width="600" alt="You wearing the {{ event.extra.line_items.0.title }}" style="display:block;width:100%;max-width:600px;height:auto;border:0;"></a>
+    <a href="{% if event.extra.responsive_checkout_url %}{{ event.extra.responsive_checkout_url }}{% else %}__STORE_URL__{% if event.extra.line_items.0.product.handle %}/products/{{ event.extra.line_items.0.product.handle }}{% endif %}{% endif %}"><img src="{{ person|lookup:'antla_last_tryon_image_url' }}" width="600" alt="You wearing the {{ event.extra.line_items.0.title }}" style="display:block;width:100%;max-width:600px;height:auto;border:0;"></a>
   </td></tr>
   <tr><td align="center" style="padding:28px 24px 8px;font-family:Arial,Helvetica,sans-serif;font-size:16px;line-height:1.5;color:#333333;">
     You tried it on and it looked good. __BODY__
@@ -104,7 +106,7 @@
   </td></tr>
   {% endif %}
   <tr><td align="center" style="padding:16px 24px 8px;">
-    <a href="{% if event.extra.responsive_checkout_url %}{{ event.extra.responsive_checkout_url }}{% else %}__STORE_URL__/products/{{ event.extra.line_items.0.product.handle }}{% endif %}" style="display:inline-block;background:#111111;color:#ffffff;font-family:Arial,Helvetica,sans-serif;font-size:16px;font-weight:700;text-decoration:none;padding:15px 32px;border-radius:6px;">__CTA__</a>
+    <a href="{% if event.extra.responsive_checkout_url %}{{ event.extra.responsive_checkout_url }}{% else %}__STORE_URL__{% if event.extra.line_items.0.product.handle %}/products/{{ event.extra.line_items.0.product.handle }}{% endif %}{% endif %}" style="display:inline-block;background:#111111;color:#ffffff;font-family:Arial,Helvetica,sans-serif;font-size:16px;font-weight:700;text-decoration:none;padding:15px 32px;border-radius:6px;">__CTA__</a>
   </td></tr>
   {% if event.extra.line_items.0.product.handle %}
   <tr><td align="center" style="padding:8px 24px 32px;font-family:Arial,Helvetica,sans-serif;font-size:14px;color:#666666;">

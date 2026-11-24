@@ -24,8 +24,10 @@ import json
 import re
 import sys
 
-ANTLA_WEBHOOK = re.compile(r"^https://app-antla\.com/integrations/klaviyo/webhook/[0-9a-f]{16}$")
-PLACEHOLDER_HINTS = ("customer@example.com", "123456789", "example.com/customer-photo", "Email #1 Subject")
+ANTLA_WEBHOOK = re.compile(r"https://app-antla\.com/integrations/klaviyo/webhook/[0-9a-f]{16}")
+BODY_EXAMPLE_TEXT = ("customer@example.com", "example.com/customer-photo")
+EXAMPLE_PRODUCT_IDS = ("123456789",)
+SUBJECT_PLACEHOLDERS = ("Email #1 Subject", "customer@example.com")
 
 
 def find_definition(obj):
@@ -95,10 +97,21 @@ def check_webhook(action, errors, warnings):
     name = m.get("name")
     url = m.get("url") or ""
     body = m.get("body") or ""
-    if "app-antla.com" in url and not ANTLA_WEBHOOK.match(url):
-        errors.append("Webhook \"%s\": URL is not a well-formed Antla webhook (expected .../webhook/<16 hex characters>): %s" % (name, url))
-    if "app-antla.com" not in url:
-        return
+    if not ANTLA_WEBHOOK.fullmatch(url):
+        if "antla" not in url.lower():
+            # Not recognisably Antla. Say so, because a mistyped address looks exactly like this.
+            warnings.append("Webhook \"%s\": URL is not an Antla campaign webhook (%r), so its body was not checked. "
+                            "If it was meant to call Antla, the address is wrong." % (name, url))
+            return
+        why = " It has leading or trailing whitespace." if url != url.strip() else ""
+        errors.append("Webhook \"%s\": URL is not a well-formed Antla webhook. Expected exactly "
+                      "https://app-antla.com/integrations/klaviyo/webhook/<16 lowercase hex characters>, got %r.%s" % (name, url, why))
+    headers = m.get("headers") or {}
+    ctype = ""
+    if isinstance(headers, dict):
+        ctype = next((str(v) for k, v in headers.items() if str(k).lower() == "content-type"), "")
+    if "application/json" not in ctype.lower():
+        errors.append("Webhook \"%s\": no \"Content-Type: application/json\" header (found %r). Antla rejects anything but JSON with a 400." % (name, ctype or None))
     if not body.strip():
         errors.append("Webhook \"%s\": body is empty." % name)
         return
@@ -120,9 +133,17 @@ def check_webhook(action, errors, warnings):
         errors.append("Webhook \"%s\": body has no \"productId\" key (exact camelCase).%s" % (name, hint))
     for key in ("email", "productId"):
         raw = re.search(r'"%s"\s*:\s*("[^"]*"|[^,}\s]+)' % key, body)
-        if raw and "{{" not in raw.group(1):
-            errors.append("Webhook \"%s\": \"%s\" is a fixed value (%s), not a template variable. Every shopper would send the same value." % (name, key, raw.group(1)))
-    for hint in PLACEHOLDER_HINTS:
+        if not raw or "{{" in raw.group(1):
+            continue
+        value = raw.group(1).strip('"')
+        if key == "productId" and value in EXAMPLE_PRODUCT_IDS:
+            errors.append("Webhook \"%s\": \"productId\" is still the example value (%s)." % (name, value))
+        elif key == "productId":
+            warnings.append("Webhook \"%s\": \"productId\" is a fixed value (%s), so every shopper gets a look for the same product. "
+                            "That is right for a single-product send (a new arrival, a win-back bestseller) and wrong for cart, browse or order flows." % (name, value))
+        elif value not in BODY_EXAMPLE_TEXT:
+            errors.append("Webhook \"%s\": \"email\" is a fixed value (%s), not a template variable. Every request would be for the same person." % (name, value))
+    for hint in BODY_EXAMPLE_TEXT:
         if hint in body:
             errors.append("Webhook \"%s\": body still contains example text (%s)." % (name, hint))
 
@@ -135,7 +156,7 @@ def check_email(action, errors, warnings):
     subject = (m.get("subject_line") or "").strip()
     if not subject:
         errors.append("Email \"%s\": subject line is empty." % name)
-    for hint in PLACEHOLDER_HINTS:
+    for hint in SUBJECT_PLACEHOLDERS:
         if hint in subject:
             errors.append("Email \"%s\": subject is still the default placeholder." % name)
     if not m.get("from_email"):
@@ -144,16 +165,34 @@ def check_email(action, errors, warnings):
         warnings.append("Email \"%s\": no preview text." % name)
 
 
+def is_antla_webhook(action):
+    url = ((action.get("data") or {}).get("message") or {}).get("url") or ""
+    return action.get("type") == "send-webhook" and "antla" in url.lower()
+
+
+def checks_a_metric(action):
+    """True for a conditional split that tests "has done <metric>", which is how a flow checks that a look arrived."""
+    if action.get("type") != "conditional-split":
+        return False
+    groups = ((action.get("data") or {}).get("profile_filter") or {}).get("condition_groups") or []
+    return any(c.get("type") == "profile-metric" for g in groups for c in (g.get("conditions") or []))
+
+
 def main(argv):
     args = [a for a in argv[1:]]
     expect_actions = expect_links = None
     path = None
     i = 0
     while i < len(args):
-        if args[i] == "--expect-actions":
-            expect_actions = int(args[i + 1]); i += 2
-        elif args[i] == "--expect-links":
-            expect_links = int(args[i + 1]); i += 2
+        if args[i] in ("--expect-actions", "--expect-links"):
+            if i + 1 >= len(args) or not args[i + 1].isdigit():
+                print("ERROR: %s needs a number." % args[i])
+                return 2
+            if args[i] == "--expect-actions":
+                expect_actions = int(args[i + 1])
+            else:
+                expect_links = int(args[i + 1])
+            i += 2
         else:
             path = args[i]; i += 1
     if path is None:
@@ -237,7 +276,24 @@ def main(argv):
         print("  %d. %s -> END" % (n, "  ->  ".join(parts)))
 
     # ---- per-path checks ------------------------------------------------
+    unchecked_sends = set()
     for n, p in enumerate(paths, 1):
+        # An email sent after an Antla webhook, with no check in between that the look arrived,
+        # goes to shoppers who also got the campaign's own email.
+        for i, (a, _) in enumerate(p):
+            if not is_antla_webhook(a):
+                continue
+            checked = False
+            for b, _ in p[i + 1:]:
+                if checks_a_metric(b):
+                    checked = True
+                if b.get("type") == "send-email":
+                    key = (id(a), id(b))
+                    if not checked and key not in unchecked_sends:
+                        unchecked_sends.add(key)
+                        warnings.append("Path %d: %s is sent after %s with no split in between that checks whether the campaign event arrived. "
+                                        "Shoppers who got the look will get this email too." % (n, describe(b), describe(a)))
+                    break
         types = [a.get("type") for a, _ in p]
         messaging = [a for a, _ in p if a.get("type") in ("send-email", "send-sms", "send-webhook", "send-whatsapp", "send-mobile-push")]
         last_action, last_label = p[-1]

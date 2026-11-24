@@ -3,13 +3,14 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>{{ event.antla_product_title }}</title>
+<title>{{ event.antla_product_title|default:'Your try-on' }}</title>
 </head>
 <!--
   Antla try-on reminder.
   Use in a flow triggered by the metric "Customer tried-on an outfit".
   Replace __STORE_URL__ (no trailing slash) and __BRAND__ before creating the template.
   Filter the trigger to antla_test_event = false.
+  The only condition on the hero image is that its own URL exists; nothing else may hide it.
 -->
 <body style="margin:0;padding:0;background:#f4f2ee;">
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f4f2ee;">
@@ -22,18 +23,20 @@
     {% if person.first_name %}{{ person.first_name|upper }}, {% endif %}THIS ONE SUITS YOU
   </td></tr>
   <tr><td align="center" style="padding:0 24px 20px;font-family:Arial,Helvetica,sans-serif;font-size:32px;line-height:1.2;color:#111111;">
-    You in the {{ event.antla_product_title }}
+    {% if event.antla_product_title %}You in the {{ event.antla_product_title }}{% else %}Here's the look you tried on{% endif %}
   </td></tr>
+  {% if event.antla_tryon_image_url %}
   <tr><td align="center" style="padding:0;">
-    <a href="__STORE_URL__/products/{{ event.antla_product_handle }}">
+    <a href="__STORE_URL__{% if event.antla_product_handle %}/products/{{ event.antla_product_handle }}{% endif %}">
       <img src="{{ event.antla_tryon_image_url }}" width="600" alt="You wearing the {{ event.antla_product_title }}" style="display:block;width:100%;max-width:600px;height:auto;border:0;">
     </a>
   </td></tr>
+  {% endif %}
   <tr><td align="center" style="padding:28px 24px 8px;font-family:Arial,Helvetica,sans-serif;font-size:16px;line-height:1.5;color:#333333;">
     You tried it on and it looked good. It's still here when you're ready.
   </td></tr>
   <tr><td align="center" style="padding:16px 24px 32px;">
-    <a href="__STORE_URL__/products/{{ event.antla_product_handle }}" style="display:inline-block;background:#111111;color:#ffffff;font-family:Arial,Helvetica,sans-serif;font-size:16px;font-weight:700;text-decoration:none;padding:15px 32px;border-radius:6px;">Make it yours</a>
+    <a href="__STORE_URL__{% if event.antla_product_handle %}/products/{{ event.antla_product_handle }}{% endif %}" style="display:inline-block;background:#111111;color:#ffffff;font-family:Arial,Helvetica,sans-serif;font-size:16px;font-weight:700;text-decoration:none;padding:15px 32px;border-radius:6px;">Make it yours</a>
   </td></tr>
   {% if event.antla_tryon_count > 1 %}
   <tr><td align="center" style="padding:0 24px 32px;font-family:Arial,Helvetica,sans-serif;font-size:14px;color:#666666;">
@@ -41,7 +44,7 @@
   </td></tr>
   {% endif %}
   <tr><td align="center" style="padding:20px 24px;border-top:1px solid #eeeeee;font-family:Arial,Helvetica,sans-serif;font-size:12px;line-height:1.5;color:#888888;">
-    This image was generated for you by our virtual try-on and is only shown to you.<br>
+    This image was generated for you by our virtual try-on.<br>
     {% unsubscribe 'Unsubscribe' %} &middot; {{ organization.name }} {{ organization.full_address }}
   </td></tr>
 </table>

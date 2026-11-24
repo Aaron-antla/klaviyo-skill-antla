@@ -19,24 +19,29 @@ A flow webhook is one-way. Klaviyo cannot read Antla's response into the same fl
 
 Flow A can, however, see whether flow B's trigger arrived: a conditional split on "has received the campaign metric in the last hour" after a short wait. Always add that check and a fallback email after a webhook (the block is in `flow-recipes.md`), because of the silent drops described below.
 
+The event arriving still isn't the email. Flow B sends it, after the time gap the merchant set for the campaign in Antla, and flow B can skip it: Smart Sending on its email, a flow filter, an email action left in draft. A shopper skipped there gets neither the look nor flow A's fallback. Read flow B's definition before pointing a webhook at its campaign, tell the user what could skip the send, and where it matters use the stricter "received an email from the campaign's flow" check in `flow-recipes.md`.
+
 ## Where the URL comes from
 
-Only the merchant can get it: Antla app → Integrations → Klaviyo → open the flow → webhook section. It looks like
+Every campaign's URL has the same shape:
 
 ```
 https://app-antla.com/integrations/klaviyo/webhook/<16-character token>
 ```
 
-The token matches the token in the metric name `Antla Campaign Event: <name> [<token>]`.
+and the token is the one in the campaign's metric name, `Antla Campaign Event: <name> [<token>]`. So there are two ways to get it, and both end in the same check:
 
-**Validate every pasted URL before building with it.** Take the last 16 characters and look for them in the account's Antla metric names (`get_metrics` with `filter: equals(integration.name,"Antla")`). 
+- **From the account.** Pick the campaign from the inventory (SKILL.md step 1b) and build the URL from its metric name. Say the campaign's name back to the user before using it.
+- **From the merchant.** They copy it from Antla app → Integrations → Klaviyo → open the flow → webhook section.
+
+**Validate every URL before building with it, pasted or built.** Take the last 16 characters and look for them in the account's Antla metric names (`get_metrics` with `filter: equals(integration.name,"Antla")`). 
 - A match tells you which campaign, metric and flow the webhook feeds; say the campaign's name back to the user so they can confirm it is the one they meant.
 - No match means the URL was mistyped, cut short, or belongs to another store. Stop and ask for it again. Antla answers a wrong token with `200 {"ok":true}` and then ignores the request, so nothing downstream will reveal the mistake.
 - Also check the shape: `https://app-antla.com/integrations/klaviyo/webhook/` followed by exactly 16 lowercase hex characters, with no trailing spaces or punctuation picked up in the paste.
 
-If the user has not given a URL, ask for it. Do not reuse one found on an existing flow for a different purpose without saying so, since each campaign generates different content.
+Do not point a flow at a campaign just because its URL is to hand: each campaign generates different content, so choose the one whose output fits the flow and confirm it with the user. If no campaign fits, the merchant has to create one in the Antla app first.
 
-The token is the only authentication. Treat the URL like a password: don't paste it into public places.
+**The token is the only authentication, and it is not well hidden.** It appears in the metric name, so anyone who can read the Klaviyo account's metrics can call the webhook, and a call sends a real email to a real shopper. Keep that exposure from growing: never write a full URL or full token into a hand-over, flow map, ticket or chat message (campaign name plus the first 8 characters is enough to identify it), and never commit one to a repository. If a URL has leaked, the merchant deletes that webhook in the Antla app; point any flow that used it at a new one.
 
 ## Request
 
@@ -54,7 +59,8 @@ Content-Type: application/json
 |---|---|---|
 | `email` | yes | Must belong to an existing Klaviyo profile. Not case-sensitive. |
 | `productId` | yes | Numeric Shopify product ID (as a string or a number) or a `gid://shopify/Product/…` GID. Exact camelCase. |
-| `userImageUrl` | no | A photo of the shopper. When omitted, Antla uses the photo already on file for that shopper. |
+
+Send only these two fields. Antla generates on the photo the shopper already uploaded; a flow never supplies a photo of its own.
 
 Choose the `productId` path from the table in `data-reference.md` for the flow's trigger.
 
@@ -78,13 +84,15 @@ Choose the `productId` path from the table in `data-reference.md` for the flow's
 | **A real product the campaign can't use** | **`200 {"ok":true}`** | **No event.** Seen with a product outside what the campaign could style. |
 | **Wrong or unknown token** | **`200 {"ok":true}`** | **No event.** |
 
-**A 200 only means the request was well-formed and queued.** Antla does the work afterwards and drops requests it can't fulfil without telling the caller. Per Antla, requests for paused, draft or removed campaigns are also ignored. So a 4xx tells you the payload is wrong, and a 200 tells you nothing about delivery. The only proof is the campaign event appearing on the profile.
+**A 200 only means the request was well-formed and queued.** Antla does the work afterwards and drops requests it can't fulfil without telling the caller. Per Antla, requests for paused, draft or removed campaigns are also ignored, and so are requests for shoppers who fail Antla's own consent and eligibility checks. So a 4xx tells you the payload is wrong, and a 200 tells you nothing about delivery. The only proof is the campaign event appearing on the profile.
 
 Retry on 5xx. Do not retry a 4xx; fix the payload.
 
 ## Who will actually get an email
 
-For a webhook call to turn into an event, the shopper needs a photo Antla can use (they have tried something on before, or `userImageUrl` is supplied) and the product must be one the campaign can generate for. In Klaviyo terms, the safe audience is profiles where `properties['antla_user_image_url']` is set. Gate the webhook branch on that, and on nothing else, so everyone else can take a normal path instead of silently receiving nothing.
+For a webhook call to turn into an event, the shopper needs a photo on file with Antla (they have tried something on before) and the product must be one the campaign can generate for. In Klaviyo terms, that is profiles where `properties['antla_user_image_url']` is set.
+
+Gate the webhook branch on that, and on nothing else, so everyone else can take a normal path instead of silently receiving nothing. Antla runs its own consent and eligibility checks on webhook requests, exactly as it does for try-on events, and silently drops the ones that fail; the fallback email covers those shoppers, so the flow does not re-check consent.
 
 ## Avoiding loops
 

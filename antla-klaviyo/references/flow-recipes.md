@@ -137,6 +137,19 @@ Antla drops requests it can't fulfil without an error, so a webhook must never b
 
 `<CAMPAIGN_METRIC_ID>` is the metric whose name contains the webhook's token. "In the last hour" is tighter than "since flow start" and avoids counting a campaign event the shopper received for some other reason days earlier.
 
+**The event proves Antla generated a look, not that the shopper was emailed.** The email is sent by the campaign's own flow, which can still skip it. So before using this block, read that flow's definition and check: its email action is live; whether Smart Sending is on (if it is, a shopper who received any email in the Smart Sending window gets neither the look nor the fallback, so tell the user and let them decide whether to turn it off on that email); what flow filters it has; and how long it waits before sending. That wait is the time gap the merchant set for the campaign in Antla, so a shopper on the "look arrived" path gets the look email that much later, not at the moment the event lands. Say the gap back to the user when describing the flow.
+
+A stricter check tests for the send itself: replace the condition above with "received an email from the campaign's flow".
+
+```json
+{"type": "profile-metric", "metric_id": "<RECEIVED_EMAIL_METRIC_ID>", "measurement": "count",
+ "measurement_filter": {"type": "numeric", "operator": "greater-than", "value": 0},
+ "timeframe_filter": {"type": "date", "operator": "in-the-last", "unit": "hour", "quantity": 1},
+ "metric_filters": [{"property": "$flow", "filter": {"type": "string", "operator": "equals", "value": "<CAMPAIGN_FLOW_ID>"}}]}
+```
+
+`<RECEIVED_EMAIL_METRIC_ID>` is Klaviyo's own `Received Email` metric, and its `$flow` property holds the ID of the flow that sent the email (confirmed on a real event). `create_flow` accepted this condition and stored it unchanged in a draft flow; it has not yet been watched evaluating on a live flow, so check which branch the first real shopper takes. Because the campaign's flow sends after the merchant's time gap, the wait in front of this check must be longer than that gap (read the delay in the campaign flow's definition and add a margin), or every shopper gets both emails. If the gap is long enough that the fallback would arrive too late to be useful, keep the event check instead.
+
 ### Email action
 
 ```json
@@ -171,7 +184,7 @@ Delay units are `minutes`, `hours`, `days`. The `property_key` must be written `
 Shoppers Antla can generate for get a personalised look; everyone else, and anyone for whom no look arrives, gets the normal reminder. Six actions, six links.
 
 Paths:
-1. photo on file → webhook → wait → look arrived → end (the campaign's flow sent the email)
+1. photo on file → webhook → wait → look arrived → end (the campaign's flow sends the email, after the time gap the merchant set in Antla)
 2. photo on file → webhook → wait → no look → normal cart email
 3. no photo on file → wait → normal cart email
 
@@ -195,7 +208,7 @@ Paths:
 
 This is the one place two paths share a step (the webhook branch rejoins its sibling's delay). It has been read back intact. Because the check is shared, a shopper on path 3 who happened to receive that campaign's event from somewhere else since entering would get no cart email; if that matters, give each branch its own delay, check and email instead.
 
-Before going live: the account almost certainly has an abandoned checkout flow already on the same trigger. Two live flows on one trigger means two messages per shopper. Pause the old one, or fold its remaining steps into this one.
+Before going live: the account almost certainly has an abandoned checkout flow already on the same trigger. Two live flows on one trigger means two messages per shopper. Set the old one to draft when this one goes live, or fold its remaining steps into this one.
 
 Check what the campaign returns. For cart recovery the merchant expects the shopper in the item they left behind, which needs a campaign whose email type is "Their photo". A "recommendation" campaign will show a different product.
 
@@ -305,8 +318,10 @@ The follow-up condition is "has not started checkout since entering", not "click
 Subject lines that use the event:
 ```
 {% if person.first_name %}{{ person.first_name }}, we{% else %}We{% endif %} styled {{ event.antla_looks|length }} looks on you
-You in the {{ event.antla_looks.0.product_title|default:event.antla_original_product.product_title }}, with {{ event.antla_discount.percentage }}% off
+You in the {% if event.antla_looks.0.product_title %}{{ event.antla_looks.0.product_title }}{% else %}{{ event.antla_original_product.product_title }}{% endif %}, with {{ event.antla_discount.percentage }}% off
 ```
+
+The second one uses `{% if %}` rather than `|default:` on purpose: `default:` with a variable as its argument makes Klaviyo fail the whole render.
 
 **This shares a trigger with the flow Antla created for the same campaign.** Never have both live. Either edit Antla's flow in the Klaviyo editor (its structure can't be changed through the MCP), or build the richer flow, confirm it with the user, then put Antla's original in draft.
 
@@ -338,6 +353,8 @@ Other useful ones: heavy try-on users (`antla_tryon_count` ≥ 5, zero orders al
 | `403 Text message actions are not enabled for this company` | The flow contains a `send-sms` action and SMS isn't set up for API use on the account. | Remove the SMS action and tell the user; they can add SMS in the Klaviyo editor. |
 | `400 All custom profile properties must be of the form: properties['property name']` | A bare `property_key` on an `update-profile` action. | Write `properties['Name']`. |
 | Everyone takes the non-webhook branch; the webhook never fires | The split gates on something other than `antla_user_image_url`, or on a value no profile in the account has. | Gate on `antla_user_image_url` only, and confirm real profiles pass it. |
+| Look event arrives but the shopper gets no email at all | The campaign's own flow skipped the send (Smart Sending, a flow filter, a draft email), and the fallback was skipped because the event exists. | Read the campaign's flow; turn Smart Sending off on its email if the user agrees, or use the stricter "received an email from the campaign's flow" check. |
+| `verify_flow.py` warns that `productId` is a fixed value | The webhook body has a literal product ID. | Intended for a single-product send (new arrival, win-back). Anywhere else, use the trigger's product variable. |
 | Webhook returns 400 at send time | The product ID variable rendered empty, or the key isn't exactly `productId`. | Check the path against a real event for that trigger. |
 | `create_flow` succeeds but some paths end early | Links where separate branches converged on one step were stored as `null`. | Give each path its own copy of the shared steps, recreate, and read back. |
 | `create_flow` returns 500 with no useful detail | Often the same cause: branches merging into one action. | Remove the merge; duplicate the action per branch. |
