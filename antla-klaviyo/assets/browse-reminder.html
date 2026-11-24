@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{ event.Name }}</title>
+</head>
+<!--
+  Browse reminder with a "see it on you" invitation.
+  Use in a flow triggered by Klaviyo's "Viewed Product" metric, as the email for shoppers Antla cannot
+  generate a look for (no photo on file, or the webhook produced nothing).
+  It shows the catalog photo only. The second button opens the try-on on the product page.
+  Uses event.Name, event.URL, event.ImageURL and event.Price from the Viewed Product event; confirm those
+  property names on a real event in the target account. Replace __BRAND__ and __STORE_URL__.
+-->
+<body style="margin:0;padding:0;background:#f4f2ee;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f4f2ee;">
+<tr><td align="center" style="padding:24px 12px;">
+<table role="presentation" width="600" cellpadding="0" cellspacing="0" style="width:100%;max-width:600px;background:#ffffff;">
+  <tr><td align="center" style="padding:24px 24px 16px;font-family:Arial,Helvetica,sans-serif;font-size:22px;font-weight:700;">
+    <a href="__STORE_URL__" style="color:#111111;text-decoration:none;">__BRAND__</a>
+  </td></tr>
+  <tr><td align="center" style="padding:0 24px 20px;font-family:Arial,Helvetica,sans-serif;font-size:30px;line-height:1.2;color:#111111;">
+    Still looking at {% if event.Name %}the {{ event.Name }}{% else %}this{% endif %}{% if person.first_name %}, {{ person.first_name }}{% endif %}?
+  </td></tr>
+  {% if event.ImageURL %}
+  <tr><td align="center" style="padding:0;">
+    <a href="{{ event.URL|default:'__STORE_URL__' }}"><img src="{{ event.ImageURL }}" width="600" alt="{{ event.Name }}" style="display:block;width:100%;max-width:600px;height:auto;border:0;"></a>
+  </td></tr>
+  {% endif %}
+  <tr><td align="center" style="padding:24px 24px 8px;">
+    {% if event.Price %}<div style="font-family:Arial,Helvetica,sans-serif;font-size:16px;color:#333333;padding-bottom:16px;">{{ event.Price }}</div>{% endif %}
+    <a href="{{ event.URL|default:'__STORE_URL__' }}" style="display:inline-block;background:#111111;color:#ffffff;font-family:Arial,Helvetica,sans-serif;font-size:15px;font-weight:700;text-decoration:none;padding:13px 28px;border-radius:6px;">Take another look</a>
+  </td></tr>
+  {% if event.URL %}
+  <tr><td align="center" style="padding:14px 24px 32px;font-family:Arial,Helvetica,sans-serif;font-size:15px;color:#333333;">
+    Not sure how it would look on you? <a href="{{ event.URL }}?antla-open-modal=true" style="color:#111111;font-weight:700;">See it on you</a> with our virtual try-on.
+  </td></tr>
+  {% endif %}
+  <tr><td align="center" style="padding:20px 24px;border-top:1px solid #eeeeee;font-family:Arial,Helvetica,sans-serif;font-size:12px;line-height:1.5;color:#888888;">
+    {% unsubscribe 'Unsubscribe' %} &middot; {{ organization.name }} {{ organization.full_address }}
+  </td></tr>
+</table>
+</td></tr>
+</table>
+</body>
+</html>

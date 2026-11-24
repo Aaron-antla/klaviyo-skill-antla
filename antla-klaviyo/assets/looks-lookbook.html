@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Your looks</title>
+</head>
+<!--
+  Antla personal lookbook.
+  Use ONLY in a flow triggered by an "Antla Campaign Event: ..." metric.
+  Works for all three Antla email types:
+    - "Their photo"        -> antla_original_tryon_image_url is set, antla_looks may be empty
+    - "1 recommendation"   -> antla_looks has 1 item
+    - "Multiple"           -> antla_looks has up to 6 items (indexes 0-5)
+  Every block is conditional, so nothing renders as a broken image when a field is empty.
+  Replace __BRAND__ before creating the template. Links come from the event and are already tracked.
+-->
+<body style="margin:0;padding:0;background:#f4f2ee;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f4f2ee;">
+<tr><td align="center" style="padding:24px 12px;">
+<table role="presentation" width="600" cellpadding="0" cellspacing="0" style="width:100%;max-width:600px;background:#ffffff;">
+  <tr><td align="center" style="padding:24px 24px 16px;font-family:Arial,Helvetica,sans-serif;font-size:22px;font-weight:700;">
+    <a href="{{ event.antla_store_url }}" style="color:#111111;text-decoration:none;">__BRAND__</a>
+  </td></tr>
+
+  {% if event.antla_original_tryon_image_url %}
+  <tr><td align="center" style="padding:0 24px 20px;font-family:Arial,Helvetica,sans-serif;font-size:32px;line-height:1.2;color:#111111;">
+    {% if person.first_name %}{{ person.first_name }}, you{% else %}You{% endif %} in the {{ event.antla_original_product.product_title }}
+  </td></tr>
+  <tr><td align="center" style="padding:0;">
+    <a href="{{ event.antla_original_product.product_url }}">
+      <img src="{{ event.antla_original_tryon_image_url }}" width="600" alt="You wearing the {{ event.antla_original_product.product_title }}" style="display:block;width:100%;max-width:600px;height:auto;border:0;">
+    </a>
+  </td></tr>
+  <tr><td align="center" style="padding:20px 24px 28px;">
+    <div style="font-family:Arial,Helvetica,sans-serif;font-size:16px;color:#333333;padding-bottom:14px;">{{ event.antla_original_product.price }}</div>
+    <a href="{{ event.antla_original_product.product_url }}" style="display:inline-block;background:#111111;color:#ffffff;font-family:Arial,Helvetica,sans-serif;font-size:16px;font-weight:700;text-decoration:none;padding:15px 32px;border-radius:6px;">Shop your look</a>
+  </td></tr>
+  {% endif %}
+
+  {% if event.antla_looks %}
+  <tr><td align="center" style="padding:8px 24px 20px;font-family:Arial,Helvetica,sans-serif;font-size:{% if event.antla_original_tryon_image_url %}22{% else %}32{% endif %}px;line-height:1.2;color:#111111;">
+    {% if event.antla_original_tryon_image_url %}We styled you in {{ event.antla_looks|length|pluralize:"another look,a few more" }}{% else %}{% if person.first_name %}{{ person.first_name }}, we{% else %}We{% endif %} had to show you this{% endif %}
+  </td></tr>
+  {% for look in event.antla_looks %}
+  {% if look.tryon_image_url %}
+  <tr><td align="center" style="padding:0;">
+    <a href="{{ look.product_url }}">
+      <img src="{{ look.tryon_image_url }}" width="600" alt="You wearing the {{ look.product_title }}" style="display:block;width:100%;max-width:600px;height:auto;border:0;">
+    </a>
+  </td></tr>
+  <tr><td align="center" style="padding:18px 24px 30px;">
+    <div style="font-family:Arial,Helvetica,sans-serif;font-size:18px;font-weight:700;color:#111111;">{{ look.product_title }}</div>
+    <div style="font-family:Arial,Helvetica,sans-serif;font-size:15px;color:#555555;padding:6px 0 14px;">{{ look.price }}</div>
+    <a href="{{ look.product_url }}" style="display:inline-block;background:#111111;color:#ffffff;font-family:Arial,Helvetica,sans-serif;font-size:15px;font-weight:700;text-decoration:none;padding:13px 28px;border-radius:6px;">Shop this look</a>
+  </td></tr>
+  {% endif %}
+  {% endfor %}
+  {% endif %}
+
+  {% if event.antla_discount.code %}
+  <tr><td align="center" style="padding:22px 24px;background:#111111;font-family:Arial,Helvetica,sans-serif;font-size:16px;color:#ffffff;">
+    Use code <strong>{{ event.antla_discount.code }}</strong> for {{ event.antla_discount.percentage }}% off.
+  </td></tr>
+  {% endif %}
+
+  <tr><td align="center" style="padding:24px;font-family:Arial,Helvetica,sans-serif;font-size:14px;">
+    <a href="{{ event.antla_shop_url }}" style="color:#111111;">Try on something else</a>
+  </td></tr>
+  <tr><td align="center" style="padding:20px 24px;border-top:1px solid #eeeeee;font-family:Arial,Helvetica,sans-serif;font-size:12px;line-height:1.5;color:#888888;">
+    These images were generated for you by our virtual try-on and are only shown to you.<br>
+    {% unsubscribe 'Unsubscribe' %} &middot; {{ organization.name }} {{ organization.full_address }}
+  </td></tr>
+</table>
+</td></tr>
+</table>
+</body>
+</html>

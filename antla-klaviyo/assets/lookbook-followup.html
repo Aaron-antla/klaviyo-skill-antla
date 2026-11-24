@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Your looks</title>
+</head>
+<!--
+  Antla lookbook follow-up (second email).
+  Use ONLY in a flow triggered by an "Antla Campaign Event: ..." metric, as the follow-up to looks-lookbook.html.
+  It deliberately does NOT repeat the generated images: it shows the same products as catalog photos,
+  so the second email is a different view of the same recommendation.
+  Replace __BRAND__ before creating the template.
+-->
+<body style="margin:0;padding:0;background:#f4f2ee;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f4f2ee;">
+<tr><td align="center" style="padding:24px 12px;">
+<table role="presentation" width="600" cellpadding="0" cellspacing="0" style="width:100%;max-width:600px;background:#ffffff;">
+  <tr><td align="center" style="padding:24px 24px 16px;font-family:Arial,Helvetica,sans-serif;font-size:22px;font-weight:700;">
+    <a href="{{ event.antla_store_url }}" style="color:#111111;text-decoration:none;">__BRAND__</a>
+  </td></tr>
+  <tr><td align="center" style="padding:0 24px 8px;font-family:Arial,Helvetica,sans-serif;font-size:30px;line-height:1.2;color:#111111;">
+    Still thinking it over{% if person.first_name %}, {{ person.first_name }}{% endif %}?
+  </td></tr>
+  <tr><td align="center" style="padding:0 24px 24px;font-family:Arial,Helvetica,sans-serif;font-size:16px;line-height:1.5;color:#333333;">
+    {% if event.antla_looks %}Here is a closer look at what we styled you in.{% else %}Here is a closer look at the {{ event.antla_original_product.product_title }}.{% endif %}
+  </td></tr>
+  {% if event.antla_looks %}
+  {% for look in event.antla_looks %}
+  {% if look.product_image_url %}
+  <tr><td align="center" style="padding:0 24px 8px;">
+    <a href="{{ look.product_url }}"><img src="{{ look.product_image_url }}" width="360" alt="{{ look.product_title }}" style="display:block;width:100%;max-width:360px;height:auto;border:0;"></a>
+  </td></tr>
+  <tr><td align="center" style="padding:10px 24px 28px;">
+    <div style="font-family:Arial,Helvetica,sans-serif;font-size:17px;font-weight:700;color:#111111;">{{ look.product_title }}</div>
+    <div style="font-family:Arial,Helvetica,sans-serif;font-size:15px;color:#555555;padding:6px 0 14px;">{{ look.price }}</div>
+    <a href="{{ look.product_url }}" style="display:inline-block;background:#111111;color:#ffffff;font-family:Arial,Helvetica,sans-serif;font-size:15px;font-weight:700;text-decoration:none;padding:13px 28px;border-radius:6px;">View details</a>
+  </td></tr>
+  {% endif %}
+  {% endfor %}
+  {% elif event.antla_original_product.product_image_url %}
+  <tr><td align="center" style="padding:0 24px 8px;">
+    <a href="{{ event.antla_original_product.product_url }}"><img src="{{ event.antla_original_product.product_image_url }}" width="360" alt="{{ event.antla_original_product.product_title }}" style="display:block;width:100%;max-width:360px;height:auto;border:0;"></a>
+  </td></tr>
+  <tr><td align="center" style="padding:10px 24px 28px;">
+    <div style="font-family:Arial,Helvetica,sans-serif;font-size:15px;color:#555555;padding:6px 0 14px;">{{ event.antla_original_product.price }}</div>
+    <a href="{{ event.antla_original_product.product_url }}" style="display:inline-block;background:#111111;color:#ffffff;font-family:Arial,Helvetica,sans-serif;font-size:15px;font-weight:700;text-decoration:none;padding:13px 28px;border-radius:6px;">View details</a>
+  </td></tr>
+  {% endif %}
+  {% if event.antla_discount.code %}
+  <tr><td align="center" style="padding:22px 24px;background:#111111;font-family:Arial,Helvetica,sans-serif;font-size:16px;color:#ffffff;">
+    Your code <strong>{{ event.antla_discount.code }}</strong> still gives you {{ event.antla_discount.percentage }}% off.
+  </td></tr>
+  {% endif %}
+  <tr><td align="center" style="padding:24px;font-family:Arial,Helvetica,sans-serif;font-size:14px;">
+    <a href="{{ event.antla_shop_url }}" style="color:#111111;">Try on something else</a>
+  </td></tr>
+  <tr><td align="center" style="padding:20px 24px;border-top:1px solid #eeeeee;font-family:Arial,Helvetica,sans-serif;font-size:12px;line-height:1.5;color:#888888;">
+    {% unsubscribe 'Unsubscribe' %} &middot; {{ organization.name }} {{ organization.full_address }}
+  </td></tr>
+</table>
+</td></tr>
+</table>
+</body>
+</html>

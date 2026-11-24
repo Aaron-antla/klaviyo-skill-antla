@@ -1,0 +1,35 @@
+<!--
+  Antla personalised hero block for ANY Klaviyo email (campaigns included).
+  It reads profile properties, not event data, so it works without an Antla trigger.
+  Shoppers who have tried something on see themselves; everyone else sees the fallback.
+  Paste into an HTML/text block or a CODE template. Replace:
+    __STORE_URL__      store URL, no trailing slash
+    __FALLBACK_IMG__   the normal campaign hero image URL
+    __FALLBACK_LINK__  where the normal hero links to. Use a product page URL with no query string,
+                       because the fallback button appends ?antla-open-modal=true to open the try-on there
+    __FALLBACK_ALT__   alt text for the normal hero
+-->
+{% if person|lookup:'antla_last_tryon_image_url' %}
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+  <tr><td align="center" style="padding:0;">
+    <a href="__STORE_URL__/products/{{ person|lookup:'antla_last_tryon_product_handle' }}">
+      <img src="{{ person|lookup:'antla_last_tryon_image_url' }}" width="600" alt="Your latest try-on" style="display:block;width:100%;max-width:600px;height:auto;border:0;">
+    </a>
+  </td></tr>
+  <tr><td align="center" style="padding:18px 24px 26px;font-family:Arial,Helvetica,sans-serif;">
+    <div style="font-size:20px;font-weight:700;color:#111111;padding-bottom:12px;">Still thinking about this one{% if person.first_name %}, {{ person.first_name }}{% endif %}?</div>
+    <a href="__STORE_URL__/products/{{ person|lookup:'antla_last_tryon_product_handle' }}" style="display:inline-block;background:#111111;color:#ffffff;font-size:15px;font-weight:700;text-decoration:none;padding:13px 28px;border-radius:6px;">See it again</a>
+  </td></tr>
+</table>
+{% else %}
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+  <tr><td align="center" style="padding:0;">
+    <a href="__FALLBACK_LINK__">
+      <img src="__FALLBACK_IMG__" width="600" alt="__FALLBACK_ALT__" style="display:block;width:100%;max-width:600px;height:auto;border:0;">
+    </a>
+  </td></tr>
+  <tr><td align="center" style="padding:18px 24px 26px;font-family:Arial,Helvetica,sans-serif;">
+    <a href="__FALLBACK_LINK__?antla-open-modal=true" style="display:inline-block;background:#111111;color:#ffffff;font-size:15px;font-weight:700;text-decoration:none;padding:13px 28px;border-radius:6px;">See it on you</a>
+  </td></tr>
+</table>
+{% endif %}

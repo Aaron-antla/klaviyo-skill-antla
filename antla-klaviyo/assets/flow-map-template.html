@@ -1,0 +1,253 @@
+<title>%%store%% Flow Map</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: Antla's bordered grid. One framed column with hairline cells; diagrams sit in full-width cells. */
+:root {
+  --bg: #fcfcfc; --cell: #ffffff; --ink: #111111; --muted: #777777; --line: #d9d9d9; --line-soft: #e5e5e5;
+  --accent: #2d68ff; --accent-soft: #eef3ff; --ok: #00a656; --ok-soft: #e7f7ee;
+  --warn: #a35f00; --warn-soft: #fff3df; --crit: #c42b1c; --crit-soft: #fdecea; --unk: #6b6b6b; --unk-soft: #f1f1f1;
+  --node: #ffffff; --node-line: #d9d9d9; --node-line-strong: #b5b5b5; --grid: rgba(17,17,17,0.05); --grid-bg: #fafafa;
+  --ok-on-ink: #3ddc8a; --muted-on-ink: #9a9a9a;
+  --sans: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+  --mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --node: #141414; --node-line: #333333; --node-line-strong: #5a5a5a; --grid: rgba(255,255,255,0.045); --grid-bg: #111111;
+  --ok-on-ink: #00a656; --muted-on-ink: #777777;
+  --bg: #121212; --cell: #161616; --ink: #fcfcfc; --muted: #9a9a9a; --line: #404040; --line-soft: #2c2c2c;
+  --accent: #6e95ff; --accent-soft: #1a2440; --ok: #2fc77a; --ok-soft: #12301f;
+  --warn: #f0a43a; --warn-soft: #33260f; --crit: #ff7a6b; --crit-soft: #3a1714; --unk: #b0b0b0; --unk-soft: #242424;
+  color-scheme: dark; } }
+:root[data-theme="dark"] {
+  --node: #141414; --node-line: #333333; --node-line-strong: #5a5a5a; --grid: rgba(255,255,255,0.045); --grid-bg: #111111;
+  --ok-on-ink: #00a656; --muted-on-ink: #777777;
+  --bg: #121212; --cell: #161616; --ink: #fcfcfc; --muted: #9a9a9a; --line: #404040; --line-soft: #2c2c2c;
+  --accent: #6e95ff; --accent-soft: #1a2440; --ok: #2fc77a; --ok-soft: #12301f;
+  --warn: #f0a43a; --warn-soft: #33260f; --crit: #ff7a6b; --crit-soft: #3a1714; --unk: #b0b0b0; --unk-soft: #242424;
+  color-scheme: dark; }
+body { background: var(--bg); color: var(--ink); font-family: var(--sans); font-size: 15px; line-height: 1.5; }
+.wrap { max-width: 1480px; margin: 0 auto; padding-block: 32px 64px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+.frame { border-left: 1px solid var(--line); border-right: 1px solid var(--line); }
+section { border-top: 1px solid var(--line); }
+section:last-child { border-bottom: 1px solid var(--line); }
+.cell { padding: 32px; background: var(--cell); }
+@media (max-width: 640px) { .cell { padding: 20px; } }
+h1, h2, h3 { margin: 0; text-wrap: balance; }
+h1 { font-size: clamp(32px, 5vw, 48px); font-weight: 800; letter-spacing: -1.2px; line-height: 1.05; }
+h2 { font-size: 24px; font-weight: 700; letter-spacing: -0.4px; }
+h3 { font-size: 18px; font-weight: 700; letter-spacing: -0.2px; }
+p { margin: 0; }
+.eyebrow { font-size: 13px; font-weight: 500; letter-spacing: 0.04em; color: var(--muted); text-transform: uppercase; margin-bottom: 12px; }
+.lede { color: var(--muted); max-width: 64ch; margin-top: 16px; font-size: 16px; }
+.muted { color: var(--muted); }
+.mono { font-family: var(--mono); font-size: 12.5px; font-variant-numeric: tabular-nums; }
+a { color: var(--accent); text-decoration: none; }
+a:hover { text-decoration: underline; }
+a:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.sec-h { display: flex; justify-content: space-between; align-items: baseline; gap: 16px; flex-wrap: wrap; }
+.sec-h p { color: var(--muted); max-width: 60ch; }
+
+/* hero facts */
+.facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); border-top: 1px solid var(--line); }
+.facts > div { padding: 20px 32px; border-right: 1px solid var(--line); background: var(--cell); }
+.facts > div:last-child { border-right: 0; }
+.facts b { display: block; font-size: 22px; font-weight: 700; letter-spacing: -0.4px; font-variant-numeric: tabular-nums; }
+.facts span { color: var(--muted); font-size: 13px; }
+
+/* attention */
+.att-list { list-style: none; margin: 24px 0 0; padding: 0; display: grid; gap: 0; border-top: 1px solid var(--line-soft); }
+.att { display: grid; grid-template-columns: 92px 1fr; gap: 16px; padding: 16px 0; border-bottom: 1px solid var(--line-soft); }
+.att p { color: var(--muted); margin-top: 4px; max-width: 80ch; }
+.sev { justify-self: start; align-self: start; font-size: 12px; font-weight: 600; padding: 3px 10px; border-radius: 9999px; }
+.a-crit .sev { background: var(--crit-soft); color: var(--crit); }
+.a-warn .sev { background: var(--warn-soft); color: var(--warn); }
+.a-info .sev { background: var(--accent-soft); color: var(--accent); }
+@media (max-width: 560px) { .att { grid-template-columns: 1fr; gap: 6px; } }
+
+/* triggers */
+.trig { list-style: none; margin: 20px 0 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 0 32px; }
+.trig li { display: grid; grid-template-columns: 10px 1fr auto; align-items: center; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--line-soft); }
+.dot { width: 8px; height: 8px; border-radius: 50%; }
+.d-ok { background: var(--ok); } .d-warn { background: var(--warn); } .d-crit { background: var(--crit); }
+
+/* legend */
+.legend { display: flex; flex-wrap: wrap; gap: 8px 20px; margin-top: 20px; font-size: 13px; color: var(--muted); }
+.legend span { display: inline-flex; align-items: center; gap: 8px; }
+.sw { width: 22px; height: 14px; border: 1.5px solid var(--ink); border-radius: 3px; display: inline-block; }
+.ln { width: 26px; height: 0; border-top: 2.5px solid var(--accent); display: inline-block; }
+.ln-hit { border-color: var(--ok); } .ln-store { border-color: var(--node-line-strong); } .ln-warn { border-color: var(--warn); } .ln-unk { border-top-style: dashed; border-color: var(--node-line-strong); }
+.sw-hit { background: var(--ink); border-color: var(--ink); border-radius: 0; margin-left: -6px; }
+.sw-trigger { background: var(--ink); border-radius: 0; }
+.sw-delay { border-style: dashed; border-color: var(--muted); border-radius: 9999px; }
+.sw-split { border-color: var(--ink); background: var(--cell); }
+.sw-webhook { background: var(--accent-soft); border-color: var(--accent); }
+.sw-tryon { border-color: var(--accent); border-width: 2.5px; }
+.sw-look { background: var(--ok-soft); border-color: var(--ok); }
+.sw-email { border-color: var(--line); background: var(--cell); }
+.sw-warn { background: var(--warn-soft); border-color: var(--warn); }
+
+/* flow cards */
+.flow { border-top: 1px solid var(--line); background: var(--cell); }
+.flow-h { display: flex; justify-content: space-between; gap: 16px; flex-wrap: wrap; padding: 24px 32px 0; }
+.flow-h .note { color: var(--muted); margin-top: 4px; max-width: 70ch; font-size: 14px; }
+.flow-meta { display: flex; align-items: center; gap: 10px; }
+figure { margin: 0; }
+.scroll { overflow-x: auto; padding: 28px 32px 32px; margin-top: 20px; border-top: 1px solid var(--line-soft);
+  background-color: var(--grid-bg);
+  background-image: linear-gradient(var(--grid) 1px, transparent 1px), linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+  background-size: 64px 64px; background-position: -1px -1px; }
+@media (max-width: 640px) { .flow-h { padding: 20px 20px 0; } .scroll { padding: 20px 16px 24px; } }
+svg { display: block; max-width: none; height: auto; font-family: var(--sans); }
+svg .edge { fill: none; stroke-width: 2.5; stroke-linejoin: miter; stroke-linecap: butt; }
+svg .e-antla { stroke: var(--accent); }
+svg .e-hit { stroke: var(--ok); }
+svg .e-store { stroke: var(--node-line-strong); }
+svg .e-warn { stroke: var(--warn); }
+svg .e-unk { stroke: var(--node-line-strong); stroke-dasharray: 6 5; }
+svg .node rect { fill: var(--node); stroke: var(--node-line); stroke-width: 1; }
+svg .eb { font-family: var(--mono); font-size: 11px; letter-spacing: 0.16em; fill: var(--accent); }
+svg .tt { font-size: 16px; font-weight: 600; letter-spacing: -0.2px; fill: var(--ink); }
+svg .sb { font-size: 13px; fill: var(--muted); }
+svg .r-store .eb { fill: var(--muted); }
+svg .r-hit rect { fill: var(--ink); stroke: var(--ink); }
+svg .r-hit .eb { fill: var(--ok-on-ink); }
+svg .r-hit .tt { fill: var(--bg); }
+svg .r-hit .sb { fill: var(--muted-on-ink); }
+svg .r-warn rect { stroke: var(--warn); }
+svg .r-warn .eb, svg .r-warn .sb { fill: var(--warn); }
+svg .r-unk rect { stroke: var(--node-line-strong); stroke-dasharray: 5 4; }
+svg .r-unk .eb { fill: var(--muted); }
+.k-trigger rect { stroke-width: 1.5; }
+
+/* tables */
+.tbl-wrap { overflow-x: auto; margin-top: 20px; }
+table { border-collapse: collapse; width: 100%; min-width: 640px; font-size: 14px; }
+th, td { text-align: left; padding: 10px 12px 10px 0; border-bottom: 1px solid var(--line-soft); vertical-align: top; }
+thead th { font-size: 12px; font-weight: 500; color: var(--muted); letter-spacing: 0.04em; text-transform: uppercase; border-bottom: 1px solid var(--line); }
+tr.grp th { padding-top: 22px; font-size: 14px; font-weight: 700; border-bottom: 1px solid var(--line); }
+.pill { display: inline-block; font-size: 12px; font-weight: 600; padding: 2px 10px; border-radius: 9999px; border: 1px solid var(--line); color: var(--muted); }
+.p-live { background: var(--ok-soft); border-color: transparent; color: var(--ok); }
+.tag { font-size: 12px; font-weight: 600; padding: 2px 10px; border-radius: 9999px; }
+.tg-ok { background: var(--ok-soft); color: var(--ok); }
+.tg-unk { background: var(--unk-soft); color: var(--unk); }
+.role { font-size: 13px; color: var(--muted); }
+footer.cell { color: var(--muted); font-size: 13px; }
+@media (prefers-reduced-motion: no-preference) { a { transition: color 120ms cubic-bezier(.4,0,.2,1); } }
+
+/* Antla header, theme switch, footer */
+:root { --nav: rgba(252,252,252,0.86); --foot-bg: #121212; --foot-ink: #fcfcfc; --foot-muted: #808080; --foot-line: #404040; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --nav: rgba(18,18,18,0.86); --foot-bg: #0b0b0b; } }
+:root[data-theme="dark"] { --nav: rgba(18,18,18,0.86); --foot-bg: #0b0b0b; }
+body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 10; background: var(--bg); }
+.topbar { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5; background: var(--nav); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border-bottom: 1px solid var(--line); }
+.topbar-in { max-width: 1480px; margin: 0 auto; height: 60px; display: flex; align-items: center; justify-content: space-between; gap: 16px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+.brand { display: flex; align-items: center; gap: 14px; color: var(--ink); min-width: 0; }
+.brand .wm { height: 22px; width: auto; display: block; }
+.brand .crumb { font-size: 14px; color: var(--muted); border-left: 1px solid var(--line); padding-left: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.theme { display: inline-flex; padding: 3px; border: 1px solid var(--line); border-radius: 9999px; background: var(--cell); }
+.theme button { font: 500 13px/1 var(--sans); color: var(--muted); background: transparent; border: 0; border-radius: 9999px; padding: 8px 14px; cursor: pointer;
+  transition: background 120ms cubic-bezier(.4,0,.2,1), color 120ms cubic-bezier(.4,0,.2,1), transform 120ms; }
+.theme button:active { transform: scale(0.97); }
+.theme button[aria-pressed="true"] { background: var(--ink); color: var(--bg); }
+.theme button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+@media (max-width: 480px) { .brand .crumb { display: none; } }
+.foot { background: var(--foot-bg); color: var(--foot-ink); border-top: 1px solid var(--foot-line); overflow: hidden; }
+.foot-in { max-width: 1480px; margin: 0 auto; padding-block: 40px 0;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+.foot p { color: var(--foot-muted); font-size: 13px; max-width: 70ch; }
+.foot .wm-big { display: block; width: 100%; height: auto; color: var(--foot-ink); opacity: 0.08; margin-top: 32px; transform: translateY(18%); }
+.wrap { padding-block: 0 64px; }
+</style>
+
+<header class="topbar"><div class="topbar-in">
+  <a class="brand" href="#top" aria-label="Antla"><svg class="wm" viewBox="0 -4 1181 334" role="img" aria-label="Antla"><path fill="currentColor" d="M1.31964 320.591L106.992 39.5388C111.728 27.4028 118.24 18.5228 126.528 12.8988C134.816 7.27481 144.436 4.46281 155.388 4.46281C166.34 4.46281 175.96 7.27481 184.248 12.8988C192.832 18.2268 199.344 26.9588 203.784 39.0948L309.9 320.591H263.28L236.196 245.555H73.6916L46.1636 320.591H1.31964ZM87.0116 207.815H223.32L167.82 53.7468C166.34 49.8988 164.712 46.9388 162.936 44.8668C161.16 42.7948 158.644 41.7588 155.388 41.7588C152.428 41.7588 150.06 42.7948 148.284 44.8668C146.508 46.9388 145.028 49.8988 143.844 53.7468L87.0116 207.815ZM343.297 320.591V189.611C343.297 169.483 347.737 151.871 356.617 136.775C365.793 121.679 378.373 109.987 394.357 101.699C410.341 93.1148 428.545 88.8228 448.969 88.8228C469.689 88.8228 487.893 93.1148 503.581 101.699C519.565 109.987 531.997 121.679 540.877 136.775C550.053 151.871 554.641 169.483 554.641 189.611V320.591H513.793V190.055C513.793 176.439 510.685 164.747 504.469 154.979C498.549 144.915 490.557 137.219 480.493 131.891C470.725 126.563 460.217 123.899 448.969 123.899C437.721 123.899 427.065 126.563 417.001 131.891C407.233 137.219 399.241 144.915 393.025 154.979C387.105 164.747 384.145 176.439 384.145 190.055V320.591H343.297ZM696.752 320.591C676.624 320.591 660.788 314.819 649.244 303.275C637.996 291.731 632.372 276.043 632.372 256.211V37.3188H673.22V253.547C673.22 263.315 675.884 271.159 681.212 277.079C686.836 282.703 694.532 285.515 704.3 285.515H750.032V320.591H696.752ZM593.3 129.227V94.1508H750.92V129.227H593.3ZM800.305 320.591V-3.52919H841.153V320.591H800.305ZM1000.23 325.919C978.325 325.919 959.381 320.739 943.397 310.379C927.413 299.723 915.129 285.367 906.545 267.311C897.961 249.255 893.669 229.275 893.669 207.371C893.669 185.171 898.405 165.191 907.877 147.431C917.349 129.375 930.965 115.167 948.725 104.807C966.485 94.1508 987.797 88.8228 1012.66 88.8228C1036.64 88.8228 1057.21 94.0028 1074.38 104.363C1091.55 114.723 1104.72 128.783 1113.89 146.543C1123.37 164.303 1128.1 184.135 1128.1 206.039V320.591H1086.81V274.415H1085.92C1081.48 282.999 1075.41 291.287 1067.72 299.279C1060.32 306.975 1050.99 313.339 1039.75 318.371C1028.5 323.403 1015.33 325.919 1000.23 325.919ZM1010.89 290.843C1025.69 290.843 1038.71 287.291 1049.96 280.187C1061.5 272.787 1070.38 262.723 1076.6 249.995C1083.11 236.971 1086.37 222.467 1086.37 206.483C1086.37 190.795 1083.26 176.735 1077.04 164.303C1071.12 151.871 1062.54 142.103 1051.29 134.999C1040.04 127.599 1026.87 123.899 1011.77 123.899C995.789 123.899 982.025 127.599 970.481 134.999C959.233 142.399 950.501 152.463 944.285 165.191C938.365 177.623 935.405 191.831 935.405 207.815C935.405 223.207 938.365 237.267 944.285 249.995C950.205 262.427 958.789 272.343 970.037 279.743C981.285 287.143 994.901 290.843 1010.89 290.843Z"/></svg><span class="crumb">Klaviyo flow map · %%store%%</span></a>
+  <div class="theme" role="group" aria-label="Colour theme">
+    <button type="button" id="theme-light" data-set="light" aria-pressed="false">Light</button>
+    <button type="button" id="theme-dark" data-set="dark" aria-pressed="false">Dark</button>
+  </div>
+</div></header>
+<div class="wrap" id="top"><div class="frame">
+
+<section class="cell">
+  <div class="eyebrow">Klaviyo · %%store%% · %%date%%</div>
+  <h1>%%store%% flow map.</h1>
+  <p class="lede">Every flow in the account, where Antla's virtual try-on enters each one, and what to fix before anything new goes live. Read from Klaviyo on %%date%%.</p>
+</section>
+<div class="facts">
+  <div><b>%%total%%</b><span>flows in the account</span></div>
+  <div><b>%%live%%</b><span>live</span></div>
+  <div><b>%%nmap%%</b><span>in the try-on map</span></div>
+  <div><b>%%ncamp%%</b><span>Antla campaigns</span></div>
+</div>
+
+<section class="cell" id="attention">
+  <div class="sec-h"><h2>Fix first.</h2><p>Ordered by how likely each one is to send a shopper the wrong email.</p></div>
+  <ul class="att-list">
+%%att%%
+  </ul>
+</section>
+
+<section class="cell" id="triggers">
+  <div class="sec-h"><h2>Are the triggers firing?</h2><p>Last event received for each trigger the try-on map uses.</p></div>
+  <ul class="trig">
+%%trig%%
+  </ul>
+</section>
+
+<section class="cell" id="map">
+  <div class="sec-h"><h2>The try-on map.</h2><p>One flow per moment a shopper can be shown themselves in a product. Every path ends in an email.</p></div>
+  <div class="legend">
+    <span><i class="ln ln-antla"></i>Antla step</span>
+    <span><i class="ln ln-hit"></i><i class="sw sw-hit"></i>Shopper sees their try-on</span>
+    <span><i class="ln ln-store"></i>Store email</span>
+    <span><i class="ln ln-warn"></i>Wrong product returned</span>
+    <span><i class="ln ln-unk"></i>Not tested yet</span>
+  </div>
+</section>
+%%cards%%
+
+<section class="cell" id="campaigns">
+  <div class="sec-h"><h2>Antla campaigns.</h2><p>Each campaign has its own webhook and its own Klaviyo flow. What it generates is known only once a real event has come through.</p></div>
+  <div class="tbl-wrap"><table>
+    <thead><tr><th>Campaign</th><th>Token</th><th>Klaviyo flow</th><th>Generates</th><th>Used by</th></tr></thead>
+    <tbody>
+%%camp%%
+    </tbody>
+  </table></div>
+</section>
+
+<section class="cell" id="all">
+  <div class="sec-h"><h2>Every flow, by trigger.</h2><p>Two live flows on one trigger means a shopper gets both.</p></div>
+  <div class="tbl-wrap"><table>
+    <thead><tr><th>Flow</th><th>ID</th><th>Status</th><th>Role</th></tr></thead>
+    <tbody>
+%%allrows%%
+    </tbody>
+  </table></div>
+</section>
+
+</div></div>
+<footer class="foot"><div class="foot-in">
+  <p>Built by Antla from %%store%%'s Klaviyo account on %%date%%. Flow IDs open the flow in Klaviyo. Nothing on this page changes the account.</p>
+  <svg class="wm-big" viewBox="0 -4 1181 334" aria-hidden="true"><path fill="currentColor" d="M1.31964 320.591L106.992 39.5388C111.728 27.4028 118.24 18.5228 126.528 12.8988C134.816 7.27481 144.436 4.46281 155.388 4.46281C166.34 4.46281 175.96 7.27481 184.248 12.8988C192.832 18.2268 199.344 26.9588 203.784 39.0948L309.9 320.591H263.28L236.196 245.555H73.6916L46.1636 320.591H1.31964ZM87.0116 207.815H223.32L167.82 53.7468C166.34 49.8988 164.712 46.9388 162.936 44.8668C161.16 42.7948 158.644 41.7588 155.388 41.7588C152.428 41.7588 150.06 42.7948 148.284 44.8668C146.508 46.9388 145.028 49.8988 143.844 53.7468L87.0116 207.815ZM343.297 320.591V189.611C343.297 169.483 347.737 151.871 356.617 136.775C365.793 121.679 378.373 109.987 394.357 101.699C410.341 93.1148 428.545 88.8228 448.969 88.8228C469.689 88.8228 487.893 93.1148 503.581 101.699C519.565 109.987 531.997 121.679 540.877 136.775C550.053 151.871 554.641 169.483 554.641 189.611V320.591H513.793V190.055C513.793 176.439 510.685 164.747 504.469 154.979C498.549 144.915 490.557 137.219 480.493 131.891C470.725 126.563 460.217 123.899 448.969 123.899C437.721 123.899 427.065 126.563 417.001 131.891C407.233 137.219 399.241 144.915 393.025 154.979C387.105 164.747 384.145 176.439 384.145 190.055V320.591H343.297ZM696.752 320.591C676.624 320.591 660.788 314.819 649.244 303.275C637.996 291.731 632.372 276.043 632.372 256.211V37.3188H673.22V253.547C673.22 263.315 675.884 271.159 681.212 277.079C686.836 282.703 694.532 285.515 704.3 285.515H750.032V320.591H696.752ZM593.3 129.227V94.1508H750.92V129.227H593.3ZM800.305 320.591V-3.52919H841.153V320.591H800.305ZM1000.23 325.919C978.325 325.919 959.381 320.739 943.397 310.379C927.413 299.723 915.129 285.367 906.545 267.311C897.961 249.255 893.669 229.275 893.669 207.371C893.669 185.171 898.405 165.191 907.877 147.431C917.349 129.375 930.965 115.167 948.725 104.807C966.485 94.1508 987.797 88.8228 1012.66 88.8228C1036.64 88.8228 1057.21 94.0028 1074.38 104.363C1091.55 114.723 1104.72 128.783 1113.89 146.543C1123.37 164.303 1128.1 184.135 1128.1 206.039V320.591H1086.81V274.415H1085.92C1081.48 282.999 1075.41 291.287 1067.72 299.279C1060.32 306.975 1050.99 313.339 1039.75 318.371C1028.5 323.403 1015.33 325.919 1000.23 325.919ZM1010.89 290.843C1025.69 290.843 1038.71 287.291 1049.96 280.187C1061.5 272.787 1070.38 262.723 1076.6 249.995C1083.11 236.971 1086.37 222.467 1086.37 206.483C1086.37 190.795 1083.26 176.735 1077.04 164.303C1071.12 151.871 1062.54 142.103 1051.29 134.999C1040.04 127.599 1026.87 123.899 1011.77 123.899C995.789 123.899 982.025 127.599 970.481 134.999C959.233 142.399 950.501 152.463 944.285 165.191C938.365 177.623 935.405 191.831 935.405 207.815C935.405 223.207 938.365 237.267 944.285 249.995C950.205 262.427 958.789 272.343 970.037 279.743C981.285 287.143 994.901 290.843 1010.89 290.843Z"/></svg>
+</div></footer>
+<script>
+(function () {
+  var root = document.documentElement, btns = document.querySelectorAll('.theme button');
+  function current() {
+    var t = root.getAttribute('data-theme');
+    if (t === 'light' || t === 'dark') return t;
+    return window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+  }
+  function paint() { var c = current(); btns.forEach(function (b) { b.setAttribute('aria-pressed', String(b.dataset.set === c)); }); }
+  function set(t) { root.setAttribute('data-theme', t); try { localStorage.setItem('antla-flow-map-theme', t); } catch (e) {} paint(); }
+  try { var saved = localStorage.getItem('antla-flow-map-theme'); if (saved === 'light' || saved === 'dark') root.setAttribute('data-theme', saved); } catch (e) {}
+  btns.forEach(function (b) { b.addEventListener('click', function () { set(b.dataset.set); }); });
+  if (window.matchMedia) { var mq = window.matchMedia('(prefers-color-scheme: dark)'); if (mq.addEventListener) mq.addEventListener('change', paint); }
+  paint();
+})();
+</script>
